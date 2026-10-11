@@ -1,0 +1,929 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "infra-spec.schema.json",
+  "title": "Infrastructure specification",
+  "description": "Input to New-TerraformConfiguration.ps1. See docs/infra-spec-reference.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec_version",
+    "service",
+    "organization",
+    "workload",
+    "region",
+    "region_abbreviation",
+    "environments",
+    "tags",
+    "state",
+    "resources"
+  ],
+  "properties": {
+    "spec_version": {
+      "const": 1
+    },
+    "service": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "organization": {
+      "type": "string",
+      "pattern": "^[a-z0-9]{2,6}$"
+    },
+    "workload": {
+      "type": "string",
+      "pattern": "^[a-z0-9]{2,6}$"
+    },
+    "region": {
+      "const": "eastus2"
+    },
+    "region_abbreviation": {
+      "type": "string",
+      "pattern": "^[a-z0-9]{2,6}$"
+    },
+    "environments": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]{2,5}$"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource_group_name",
+        "storage_account_name",
+        "container_name"
+      ],
+      "properties": {
+        "resource_group_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "storage_account_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "container_name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "resource_group",
+              "log_analytics_workspace",
+              "application_insights",
+              "app_configuration",
+              "key_vault",
+              "servicebus_namespace",
+              "servicebus_topic",
+              "servicebus_subscription",
+              "storage_account",
+              "cosmosdb_account",
+              "cosmosdb_sql_database",
+              "cosmosdb_sql_container",
+              "container_app_environment",
+              "container_app",
+              "function_app"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "resource_group"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "resource_group"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "log_analytics_workspace"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "log_analytics_workspace"
+                },
+                "retention_in_days": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 30,
+                      "maximum": 730
+                    },
+                    {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 30,
+                        "maximum": 730
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "retention_in_days"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "application_insights"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "application_insights"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "app_configuration"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "app_configuration"
+                },
+                "sku": {
+                  "oneOf": [
+                    {
+                      "enum": [
+                        "developer",
+                        "standard",
+                        "premium"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": {
+                        "enum": [
+                          "developer",
+                          "standard",
+                          "premium"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "sku"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "key_vault"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "key_vault"
+                },
+                "purge_protection": {
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": {
+                        "type": "boolean"
+                      }
+                    }
+                  ]
+                },
+                "soft_delete_retention_days": {
+                  "type": "integer",
+                  "minimum": 7,
+                  "maximum": 90
+                },
+                "diagnostics": {
+                  "type": "boolean",
+                  "description": "Send all log categories and all metrics to the Log Analytics workspace (IG-012)."
+                }
+              },
+              "required": [
+                "type",
+                "purge_protection"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "servicebus_namespace"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "servicebus_namespace"
+                },
+                "sku": {
+                  "enum": [
+                    "Standard",
+                    "Premium"
+                  ]
+                },
+                "minimum_tls_version": {
+                  "enum": [
+                    "1.0",
+                    "1.1",
+                    "1.2"
+                  ]
+                },
+                "diagnostics": {
+                  "type": "boolean",
+                  "description": "Send all log categories and all metrics to the Log Analytics workspace (IG-012)."
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "servicebus_topic"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "servicebus_topic"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "default_message_ttl": {
+                  "type": "string",
+                  "pattern": "^P(T?[0-9]+[DHMS])+$",
+                  "description": "ISO 8601 duration, e.g. P7D or PT1M"
+                },
+                "duplicate_detection_window": {
+                  "type": "string",
+                  "pattern": "^P(T?[0-9]+[DHMS])+$",
+                  "description": "ISO 8601 duration, e.g. P7D or PT1M"
+                }
+              },
+              "required": [
+                "type",
+                "key",
+                "default_message_ttl"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "servicebus_subscription"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "servicebus_subscription"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "topic": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "max_delivery_count": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "lock_duration": {
+                  "type": "string",
+                  "pattern": "^P(T?[0-9]+[DHMS])+$",
+                  "description": "ISO 8601 duration, e.g. P7D or PT1M"
+                },
+                "default_message_ttl": {
+                  "type": "string",
+                  "pattern": "^P(T?[0-9]+[DHMS])+$",
+                  "description": "ISO 8601 duration, e.g. P7D or PT1M"
+                },
+                "dead_letter_on_expiration": {
+                  "type": "boolean"
+                },
+                "filter": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "sql"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9._-]+$"
+                    },
+                    "sql": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "key",
+                "topic",
+                "max_delivery_count",
+                "lock_duration",
+                "default_message_ttl",
+                "dead_letter_on_expiration"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "storage_account"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "storage_account"
+                },
+                "replication_type": {
+                  "enum": [
+                    "LRS",
+                    "GRS",
+                    "ZRS"
+                  ]
+                },
+                "access_tier": {
+                  "enum": [
+                    "Hot",
+                    "Cool"
+                  ]
+                },
+                "containers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]*$"
+                  },
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "type",
+                "containers"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "cosmosdb_account"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "cosmosdb_account"
+                },
+                "capacity_mode": {
+                  "const": "serverless"
+                },
+                "consistency_level": {
+                  "enum": [
+                    "Eventual",
+                    "Session",
+                    "BoundedStaleness",
+                    "Strong",
+                    "ConsistentPrefix"
+                  ]
+                },
+                "backup_retention_days": {
+                  "oneOf": [
+                    {
+                      "enum": [
+                        7,
+                        30
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": {
+                        "enum": [
+                          7,
+                          30
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "diagnostics": {
+                  "type": "boolean",
+                  "description": "Send all log categories and all metrics to the Log Analytics workspace (IG-012)."
+                }
+              },
+              "required": [
+                "type",
+                "capacity_mode",
+                "consistency_level",
+                "backup_retention_days"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "cosmosdb_sql_database"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "cosmosdb_sql_database"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                }
+              },
+              "required": [
+                "type",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "cosmosdb_sql_container"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "cosmosdb_sql_container"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "database": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "partition_key_path": {
+                  "type": "string",
+                  "pattern": "^/"
+                },
+                "unique_key_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^/"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "key",
+                "database",
+                "partition_key_path"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "container_app_environment"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "container_app_environment"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "container_app"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "container_app"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "image": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "cpu": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "memory": {
+                  "type": "string",
+                  "pattern": "^[0-9.]+Gi$"
+                },
+                "target_port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "min_replicas": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  ]
+                },
+                "max_replicas": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  ]
+                },
+                "http_concurrency": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "settings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                      },
+                      "value": {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean"
+                        ]
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^[a-z_]+\\.[a-z_]+$",
+                        "description": "Read the value from another resource: <spec type>.<attribute>, e.g. app_configuration.endpoint"
+                      }
+                    },
+                    "oneOf": [
+                      {
+                        "required": [
+                          "value"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "from"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "key",
+                "image",
+                "cpu",
+                "memory",
+                "target_port",
+                "min_replicas",
+                "max_replicas",
+                "http_concurrency"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "function_app"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "function_app"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "runtime": {
+                  "enum": [
+                    "dotnet-isolated",
+                    "node",
+                    "python",
+                    "java",
+                    "powershell"
+                  ]
+                },
+                "runtime_version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "instance_memory_mb": {
+                  "enum": [
+                    512,
+                    2048,
+                    4096
+                  ]
+                },
+                "max_instance_count": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  ]
+                },
+                "deployment_container": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "settings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                      },
+                      "value": {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean"
+                        ]
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^[a-z_]+\\.[a-z_]+$",
+                        "description": "Read the value from another resource: <spec type>.<attribute>, e.g. app_configuration.endpoint"
+                      }
+                    },
+                    "oneOf": [
+                      {
+                        "required": [
+                          "value"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "from"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "key",
+                "runtime",
+                "runtime_version",
+                "instance_memory_mb",
+                "max_instance_count",
+                "deployment_container"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    },
+    "access": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principal",
+          "role",
+          "scope"
+        ],
+        "properties": {
+          "principal": {
+            "type": "string",
+            "pattern": "^[a-z_]+(/[a-z0-9-]+)?$",
+            "description": "<spec type> or <spec type>/<key>"
+          },
+          "role": {
+            "enum": [
+              "Azure Service Bus Data Receiver",
+              "Azure Service Bus Data Sender",
+              "App Configuration Data Reader",
+              "Key Vault Secrets User",
+              "Storage Blob Data Owner",
+              "Cosmos DB Built-in Data Contributor"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^[a-z_]+(/[a-z0-9-]+)?$",
+            "description": "<spec type> or <spec type>/<key>"
+          }
+        }
+      }
+    }
+  }
+}

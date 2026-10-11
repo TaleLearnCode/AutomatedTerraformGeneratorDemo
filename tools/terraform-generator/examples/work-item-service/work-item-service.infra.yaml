@@ -1,0 +1,153 @@
+# work-item-service.infra.yaml
+# Companion infrastructure specification for the Work Item Service.
+# Source: Infrastructure Architecture Guide, revision 1.1 (approved). Section references below point to it.
+# This file is the generator's only input. Terraform is generated from it deterministically.
+
+spec_version: 1
+service: work-item-service
+organization: mmtm          # {org} in the name pattern (section 6.7)
+workload: wis               # {workload} in the name pattern
+region: eastus2             # IG-002
+region_abbreviation: eus2
+environments: [dev, qa, prd]
+
+# Section 6.7. The generator adds `environment` from var.environment.
+tags:
+  workload: work-item-service
+  owner: platform-engineering
+  cost_center: digital-products
+  data_classification: internal
+  criticality: medium
+  managed_by: terraform
+
+# IG-021: remote state is supplied by Platform Engineering. Replace before the first apply.
+state:
+  resource_group_name: REPLACE_WITH_PLATFORM_STATE_RESOURCE_GROUP
+  storage_account_name: REPLACE_WITH_PLATFORM_STATE_STORAGE_ACCOUNT
+  container_name: tfstate
+
+# A value written as { dev: .., qa: .., prd: .. } differs per environment (section 7).
+resources:
+  # IG-004
+  - type: resource_group
+
+  # IG-011, IG-012. Retention per section 7.
+  - type: log_analytics_workspace
+    retention_in_days: { dev: 30, qa: 30, prd: 90 }
+
+  # IG-011: workspace-based
+  - type: application_insights
+
+  # IG-008. SKU per section 7.
+  - type: app_configuration
+    sku: { dev: developer, qa: developer, prd: standard }
+
+  # IG-010, IG-012. Purge protection per section 7.
+  - type: key_vault
+    purge_protection: { dev: false, qa: false, prd: true }
+    soft_delete_retention_days: 90
+    diagnostics: true
+
+  # IG-007, IG-008, IG-012 (section 6.2)
+  - type: servicebus_namespace
+    sku: Standard
+    minimum_tls_version: "1.2"
+    diagnostics: true
+
+  - type: servicebus_topic
+    key: work-item-events
+    default_message_ttl: P7D
+    duplicate_detection_window: PT10M
+
+  - type: servicebus_subscription
+    key: notifications
+    topic: work-item-events
+    max_delivery_count: 10
+    lock_duration: PT1M
+    default_message_ttl: P7D
+    dead_letter_on_expiration: true
+    filter:
+      name: assigned-or-completed
+      sql: "eventType IN ('WorkItemAssigned', 'WorkItemCompleted')"
+
+  - type: servicebus_subscription
+    key: audit
+    topic: work-item-events
+    max_delivery_count: 10
+    lock_duration: PT1M
+    default_message_ttl: P7D
+    dead_letter_on_expiration: true
+
+  # IG-006, IG-008: host storage for the Function App package
+  - type: storage_account
+    replication_type: LRS
+    access_tier: Hot
+    containers: [deployments]
+
+  # IG-008, IG-012, IG-022. Backup retention per section 7.
+  - type: cosmosdb_account
+    capacity_mode: serverless
+    consistency_level: Session
+    backup_retention_days: { dev: 7, qa: 7, prd: 30 }
+    diagnostics: true
+
+  - type: cosmosdb_sql_database
+    key: workitems
+
+  - type: cosmosdb_sql_container
+    key: work-items
+    database: workitems
+    partition_key_path: /workItemId
+
+  - type: cosmosdb_sql_container
+    key: work-item-history
+    database: workitems
+    partition_key_path: /workItemId
+    unique_key_paths: [/eventId]
+
+  # IG-005, IG-011
+  - type: container_app_environment
+
+  # IG-005, IG-009, IG-013, IG-020. Replicas per section 7; image is a placeholder (section 6.1).
+  - type: container_app
+    key: api
+    image: mcr.microsoft.com/dotnet/samples:aspnetapp
+    cpu: 0.5
+    memory: 1Gi
+    target_port: 8080
+    min_replicas: { dev: 0, qa: 1, prd: 2 }
+    max_replicas: { dev: 2, qa: 3, prd: 10 }
+    http_concurrency: 50
+    settings:
+      - { name: APPCONFIG_ENDPOINT, from: app_configuration.endpoint }
+      - { name: KEYVAULT_URI, from: key_vault.uri }
+      - { name: APPLICATIONINSIGHTS_CONNECTION_STRING, from: application_insights.connection_string }
+      - { name: COSMOS_ENDPOINT, from: cosmosdb_account.endpoint }
+
+  # IG-006, IG-009, IG-015. Maximum instances per section 7.
+  - type: function_app
+    key: evt
+    runtime: dotnet-isolated
+    runtime_version: "10.0"
+    instance_memory_mb: 2048
+    max_instance_count: { dev: 40, qa: 40, prd: 100 }
+    deployment_container: deployments
+    settings:
+      - { name: APPCONFIG_ENDPOINT, from: app_configuration.endpoint }
+      - { name: KEYVAULT_URI, from: key_vault.uri }
+      - { name: APPLICATIONINSIGHTS_CONNECTION_STRING, from: application_insights.connection_string }
+      - { name: COSMOS_ENDPOINT, from: cosmosdb_account.endpoint }
+      - { name: ServiceBusConnection__fullyQualifiedNamespace, from: servicebus_namespace.fully_qualified_namespace }
+      - { name: AzureWebJobsStorage__accountName, from: storage_account.name }
+
+# Section 6.3, IG-009: least-privilege roles for the two managed identities.
+access:
+  - { principal: container_app/api, role: Azure Service Bus Data Sender, scope: servicebus_topic/work-item-events }
+  - { principal: function_app/evt, role: Azure Service Bus Data Receiver, scope: servicebus_topic/work-item-events }
+  - { principal: container_app/api, role: App Configuration Data Reader, scope: app_configuration }
+  - { principal: function_app/evt, role: App Configuration Data Reader, scope: app_configuration }
+  - { principal: container_app/api, role: Key Vault Secrets User, scope: key_vault }
+  - { principal: function_app/evt, role: Key Vault Secrets User, scope: key_vault }
+  - { principal: function_app/evt, role: Storage Blob Data Owner, scope: storage_account }
+  - { principal: container_app/api, role: Cosmos DB Built-in Data Contributor, scope: cosmosdb_sql_database/workitems }
+  - { principal: function_app/evt, role: Cosmos DB Built-in Data Contributor, scope: cosmosdb_sql_database/workitems }
